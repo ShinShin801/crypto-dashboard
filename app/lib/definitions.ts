@@ -86,3 +86,23 @@ export type InvoiceForm = {
   amount: number;
   status: 'pending' | 'paid';
 };
+
+export type PolyscanTransactionData = {
+  user_id: string;
+  txhash: string;
+  blockno: number;
+  unixtimestamp: number;
+  dateTime_utc: string; // 'YYYY-MM-DD HH:MM:SS'
+  from_address: string;
+  to_address: string;
+  value_in_matic: number;
+  value_out_matic: number;
+  contract_address?: string;
+  current_value: number;
+  txnfee_matic: number;
+  txnfee_usd: number;
+  historical_price_matic: number;
+  status: string;
+  errcode?: string;
+  method?: string;
+};

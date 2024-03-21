@@ -1,4 +1,5 @@
-import { Revenue } from './definitions';
+import { Revenue, PolyscanTransactionData } from './definitions';
+import { insertPolyscanTransactions } from '@/app/lib/actions';
 
 export const formatCurrency = (amount: number) => {
   return (amount / 100).toLocaleString('en-US', {
@@ -66,4 +67,103 @@ export const generatePagination = (currentPage: number, totalPages: number) => {
     '...',
     totalPages,
   ];
+};
+
+export interface DataRow extends Record<string, unknown> {}
+
+export const transformCsvDataToPolyscanTransactionData = (
+  renamedCsvData: DataRow[],
+): PolyscanTransactionData[] => {
+  return renamedCsvData.map((row) => {
+    return {
+      user_id: '410544b2-4001-4271-9855-fec4b6a6442a',
+      txhash: String(row.txhash),
+      blockno: Number(row.blockno),
+      unixtimestamp: Number(row.unixtimestamp),
+      dateTime_utc: String(row.dateTime_utc),
+      from_address: String(row.from_address),
+      to_address: String(row.to_address),
+      value_in_matic: parseFloat(row.value_in_matic as string),
+      value_out_matic: parseFloat(row.value_out_matic as string),
+      contract_address: row.contract_address
+        ? String(row.contract_address)
+        : undefined,
+      current_value: parseFloat(row.current_value as string),
+      txnfee_matic: parseFloat(row.txnfee_matic as string),
+      txnfee_usd: parseFloat(row.txnfee_usd as string),
+      historical_price_matic: parseFloat(row.historical_price_matic as string),
+      status: String(row.status),
+      errcode: row.errcode ? String(row.errcode) : undefined,
+      method: row.method ? String(row.method) : undefined,
+    };
+  });
+};
+
+interface RequiredColumns {
+  [key: string]: string;
+}
+const requiredColumns: RequiredColumns = {
+  Txhash: 'txhash',
+  Blockno: 'blockno',
+  UnixTimestamp: 'unixtimestamp',
+  'DateTime (UTC)': 'dateTime_utc',
+  From: 'from_address',
+  To: 'to_address',
+  ContractAddress: 'contract_address',
+  'Value_IN(MATIC)': 'value_in_matic',
+  'Value_OUT(MATIC)': 'value_out_matic',
+  'CurrentValue @ $1.05590349926354/MATIC': 'current_value',
+  'TxnFee(MATIC)': 'txnfee_matic',
+  'TxnFee(USD)': 'txnfee_usd',
+  'Historical $Price/MATIC': 'historical_price_matic',
+  Status: 'status',
+  ErrCode: 'errcode',
+  Method: 'method',
+};
+
+export const handleUploadToDatabase = async (
+  csvData: DataRow[],
+  setErrorMessage: (message: string | null) => void,
+) => {
+  // Retrieving columns
+  const csvColumns: string[] = Object.keys(csvData[0]);
+
+  // If all the required columns are included
+  const allRequiredColumnsPresent: boolean = Object.keys(requiredColumns).every(
+    (column) =>
+      csvColumns.includes(column) ||
+      csvColumns.some((col) => new RegExp('CurrentValue @.*').test(col)),
+  );
+
+  if (!allRequiredColumnsPresent) {
+    // console.error('CSV data does not contain all required columns');
+    throw new Error();
+    return;
+  }
+
+  // Columns rename
+  const renamedCsvData: DataRow[] = csvData.map((row) => {
+    const newRow: DataRow = {};
+    Object.entries(row).forEach(([key, value]) => {
+      const newKey: string =
+        requiredColumns[key] ||
+        key.replace(/CurrentValue @.*/, 'current_value');
+      newRow[newKey] = value;
+    });
+    return newRow;
+  });
+
+  const parsedData: PolyscanTransactionData[] =
+    transformCsvDataToPolyscanTransactionData(renamedCsvData);
+  console.log('Renamed CSV data', parsedData);
+
+  try {
+    await insertPolyscanTransactions(parsedData);
+  } catch (error) {
+    // setErrorMessage(
+    //   `Error while inserting, might be data duplicate, Please try again.`,
+    // );
+    throw new Error();
+  }
+  // console.log('Uploading CSV data to database...', csvData);
 };
