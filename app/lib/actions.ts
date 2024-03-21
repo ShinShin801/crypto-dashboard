@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
+import { PolyscanTransactionData } from './definitions';
 
 const FormSchema = z.object({
   id: z.string(),
@@ -70,6 +71,64 @@ export async function createInvoice(prevState: State, formData: FormData) {
   // Test it out:
   // console.log(rawFormData);
   // console.log(typeof rawFormData.amount);
+}
+
+export async function insertPolyscanTransactions(
+  transactions: PolyscanTransactionData[],
+) {
+  // トランザクションごとにループ
+  for (const transaction of transactions) {
+    // user_idはここではランダムに生成していますが、実際には適切な値を使用してください
+    // const userId = "410544b2-4001-4271-9855-fec4b6a6442a";
+
+    try {
+      await sql`
+        INSERT INTO polygonscan_transactions (
+          user_id,
+          txhash,
+          blockno,
+          unixtimestamp,
+          dateTime_utc,
+          from_address,
+          to_address,
+          value_in_matic,
+          value_out_matic,
+          contract_address,
+          current_value,
+          txnfee_matic,
+          txnfee_usd,
+          historical_price_matic,
+          status,
+          errcode,
+          method
+        ) VALUES (
+          ${transaction.user_id},
+          ${transaction.txhash},
+          ${transaction.blockno},
+          ${transaction.unixtimestamp},
+          ${transaction.dateTime_utc},
+          ${transaction.from_address},
+          ${transaction.to_address},
+          ${transaction.value_in_matic},
+          ${transaction.value_out_matic},
+          ${transaction.contract_address},
+          ${transaction.current_value},
+          ${transaction.txnfee_matic},
+          ${transaction.txnfee_usd},
+          ${transaction.historical_price_matic},
+          ${transaction.status},
+          ${transaction.errcode},
+          ${transaction.method}
+        )
+      `;
+    } catch (error) {
+      // console.error(
+      //   'Database Error: Failed to insert transaction data.',
+      //   error,
+      // );
+      throw new Error();
+    }
+  }
 }
 
 export async function updateInvoice(

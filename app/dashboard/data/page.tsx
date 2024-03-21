@@ -5,19 +5,13 @@ import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
 import { Suspense } from 'react';
 import { fetchInvoicesPages } from '@/app/lib/data';
 import { Metadata } from 'next';
-import DataPreviewTable, { DataRow } from '@/app/ui/data/preview-table';
-
-import Papa from 'papaparse';
-
-
+import { Importdata } from '@/app/ui/data/buttons';
 
 export default async function Page({}) {
-
-
   return (
     <div className="w-full">
       <div className="flex w-full items-center justify-between">
-        <h1 className={`${lusitana.className} text-2xl`}>Uploading Transaction Data</h1>
+        <h1 className={`${lusitana.className} text-2xl`}>Transaction Data</h1>
       </div>
       {/* <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
         <Search placeholder="Search invoices..." />
@@ -29,8 +23,7 @@ export default async function Page({}) {
       <div className="mt-5 flex w-full justify-center">
         <Pagination totalPages={totalPages} />
       </div> */}
-
-      <DataPreviewTable />
+      <Importdata />
 
       {/* </div> */}
     </div>
@@ -38,5 +31,5 @@ export default async function Page({}) {
 }
 
 export const metadata: Metadata = {
-  title: 'Invoices',
+  title: 'Transaction Data',
 };

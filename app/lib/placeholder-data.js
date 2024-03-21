@@ -9,6 +9,13 @@ const users = [
   },
 ];
 
+const useraddress = [
+  {
+    user_id: '410544b2-4001-4271-9855-fec4b6a6442a',
+    address: '0x1f8c45596b195593A5495D14bF3Bb38f5D080a2E',
+  },
+];
+
 const customers = [
   {
     id: '3958dc9e-712f-4377-85e9-fec4b6a6442a',
@@ -182,6 +189,7 @@ const revenue = [
 
 module.exports = {
   users,
+  useraddress,
   customers,
   invoices,
   revenue,
