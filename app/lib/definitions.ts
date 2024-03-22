@@ -31,6 +31,11 @@ export type Revenue = {
   revenue: number;
 };
 
+export type Balance = {
+  month: string;
+  matic_balance: number;
+};
+
 export type LatestInvoice = {
   id: string;
   name: string;
