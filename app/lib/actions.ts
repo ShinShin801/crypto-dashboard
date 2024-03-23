@@ -22,6 +22,14 @@ const FormSchema = z.object({
   date: z.string(),
 });
 
+const FormAddressSchema = z.object({
+  user_id: z.string(),
+  address: z.string().refine((address) => /^0x[a-fA-F0-9]{40}$/.test(address), {
+    message:
+      'Please enter valid wallet address(0x followed by 40 hexadecimal characters).',
+  }),
+});
+
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 // Use Zod to update the expected types
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
@@ -31,6 +39,14 @@ export type State = {
     customerId?: string[];
     amount?: string[];
     status?: string[];
+  };
+  message?: string | null;
+};
+
+export type StateAddress = {
+  errors?: {
+    user_id?: string[];
+    address?: string[];
   };
   message?: string | null;
 };
@@ -76,11 +92,7 @@ export async function createInvoice(prevState: State, formData: FormData) {
 export async function insertPolyscanTransactions(
   transactions: PolyscanTransactionData[],
 ) {
-  // トランザクションごとにループ
   for (const transaction of transactions) {
-    // user_idはここではランダムに生成していますが、実際には適切な値を使用してください
-    // const userId = "410544b2-4001-4271-9855-fec4b6a6442a";
-
     try {
       await sql`
         INSERT INTO polygonscan_transactions (
@@ -129,6 +141,44 @@ export async function insertPolyscanTransactions(
       throw new Error();
     }
   }
+}
+
+export async function insertAddress(
+  prevState: StateAddress,
+  formData: FormData,
+) {
+  const validatedFields = FormAddressSchema.safeParse({
+    user_id: formData.get('user_id'),
+    address: formData.get('address'),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Add the address.',
+    };
+  }
+
+  // Prepare data for insertion into the database
+  const { user_id, address } = validatedFields.data;
+
+  // Insert data into the database
+  try {
+    await sql`
+    INSERT INTO useraddress (user_id, address)
+    VALUES (${user_id}, ${address})
+    `;
+  } catch (error) {
+    return {
+      message: 'Database Error: Failed to Insert address.',
+    };
+  }
+
+  revalidatePath('/dashboard/wallets');
+  redirect('/dashboard/wallets');
+  // Test it out:
+  // console.log(rawFormData);
+  // console.log(typeof rawFormData.amount);
 }
 
 export async function updateInvoice(

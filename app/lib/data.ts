@@ -8,32 +8,20 @@ import {
   User,
   Revenue,
   Balance,
+  Address,
 } from './definitions';
-import { formatCurrency } from './utils';
+import {
+  formatCurrency,
+  formatOnchainBalance,
+  formatCurrencyAUD,
+} from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
-
-export async function fetchRevenue() {
-  // Add noStore() here to prevent the response from being cached.
-  // This is equivalent to in fetch(..., {cache: 'no-store'}).
-  noStore();
-
-  try {
-    // Artificially delay a response for demo purposes.
-    // Don't do this in production :)
-
-    console.log('Fetching revenue data...');
-    // await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    const data = await sql<Revenue>`SELECT * FROM revenue`;
-
-    console.log('Data fetch completed after 3 seconds.');
-
-    return data.rows;
-  } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch revenue data.');
-  }
-}
+import {
+  getMaticHistoricalBalance,
+  getMaticBalanceQuery,
+  getaddressCountQuery,
+  getTxCountQuery,
+} from './queries';
 
 export async function fetchBalance() {
   // Add noStore() here to prevent the response from being cached.
@@ -41,13 +29,9 @@ export async function fetchBalance() {
   noStore();
 
   try {
-    // Artificially delay a response for demo purposes.
-    // Don't do this in production :)
-
     console.log('Fetching wallet balance data...');
 
-    const data = await sql<Balance>`
-    WITH months AS (
+    const data = await sql<Balance>`WITH months AS (
       SELECT date_trunc('month', series) AS month
       FROM generate_series(
         '2023-01-01'::timestamp, -- 開始日
@@ -91,8 +75,7 @@ export async function fetchBalance() {
     )
 
     SELECT month, matic_balance
-    FROM base;
-      `;
+    FROM base;`;
 
     console.log('Data fetch completed.');
 
@@ -100,6 +83,47 @@ export async function fetchBalance() {
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch revenue data.');
+  }
+}
+
+const ITEMS_PER_PAGE_ADDRESS = 10;
+export async function fetchFilteredAddress(query: string, currentPage: number) {
+  noStore();
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE_ADDRESS;
+
+  try {
+    const invoices = await sql<Address>`
+      SELECT address
+      FROM useraddress
+      WHERE user_id = '410544b2-4001-4271-9855-fec4b6a6442a'
+        AND address ILIKE ${`%${query}%`}
+      ORDER BY address
+      LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
+    `;
+    return invoices.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch addresses.');
+  }
+}
+
+export async function fetchAddressPages(query: string) {
+  noStore();
+  try {
+    const count = await sql`SELECT COUNT(address)
+    FROM useraddress
+    WHERE user_id = '410544b2-4001-4271-9855-fec4b6a6442a'
+    AND address ILIKE ${`%${query}%`}
+    ;
+  `;
+
+    const totalPages = Math.ceil(
+      Number(count.rows[0].count) / ITEMS_PER_PAGE_ADDRESS,
+    );
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of address.');
   }
 }
 
@@ -130,29 +154,50 @@ export async function fetchCardData() {
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
-    const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
-    const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
-    const invoiceStatusPromise = sql`SELECT
-         SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
-         SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
-         FROM invoices`;
+    const maticBalancePromise = sql`
+    WITH balance as (
+      SELECT
+        SUM(CASE WHEN value_in_matic >0 THEN value_in_matic ELSE -value_out_matic END) -
+        SUM(CASE WHEN from_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835' THEN txnfee_matic ELSE 0 END) AS matic_balance
+      FROM polygonscan_transactions
+      WHERE from_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835'
+        OR to_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835'
+      )
+      SELECT matic_balance, matic_balance*1.5 as matic_balance_aud
+      FROM balance;`;
+    const addressCountPromise = sql`
+    SELECT
+      COUNT(*) AS count
+    FROM useraddress
+    WHERE
+      user_id = '410544b2-4001-4271-9855-fec4b6a6442a';`;
+    const txCountPromise = sql`
+    SELECT
+      COUNT(txhash) AS count
+    FROM polygonscan_transactions
+    WHERE
+      user_id = '410544b2-4001-4271-9855-fec4b6a6442a';`;
 
     const data = await Promise.all([
-      invoiceCountPromise,
-      customerCountPromise,
-      invoiceStatusPromise,
+      maticBalancePromise,
+      addressCountPromise,
+      txCountPromise,
     ]);
 
-    const numberOfInvoices = Number(data[0].rows[0].count ?? '0');
-    const numberOfCustomers = Number(data[1].rows[0].count ?? '0');
-    const totalPaidInvoices = formatCurrency(data[2].rows[0].paid ?? '0');
-    const totalPendingInvoices = formatCurrency(data[2].rows[0].pending ?? '0');
+    const maticBalance = formatOnchainBalance(
+      data[0].rows[0].matic_balance ?? '0',
+    );
+    const maticBalanceAUD = formatCurrencyAUD(
+      data[0].rows[0].matic_balance_aud ?? '0',
+    );
+    const numberOfAddress = Number(data[1].rows[0].count ?? '0');
+    const numberOfTx = Number(data[2].rows[0].count ?? '0');
 
     return {
-      numberOfCustomers,
-      numberOfInvoices,
-      totalPaidInvoices,
-      totalPendingInvoices,
+      maticBalance,
+      maticBalanceAUD,
+      numberOfAddress,
+      numberOfTx,
     };
   } catch (error) {
     console.error('Database Error:', error);
@@ -238,7 +283,6 @@ export async function fetchInvoiceById(id: string) {
       amount: invoice.amount / 100,
     }));
 
-    console.log(invoice);
     return invoice[0];
   } catch (error) {
     console.error('Database Error:', error);
