@@ -31,6 +31,11 @@ export type Revenue = {
   revenue: number;
 };
 
+export type Address = {
+  // user_id: string;
+  address: number;
+};
+
 export type Balance = {
   month: string;
   matic_balance: number;

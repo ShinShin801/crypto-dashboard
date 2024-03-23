@@ -8,6 +8,28 @@ export const formatCurrency = (amount: number) => {
   });
 };
 
+export const formatCurrencyAUD = (amount: number) => {
+  const scale = 5;
+  let format_amount = Math.floor(amount * 10 ** scale) / 10 ** scale;
+
+  return format_amount.toLocaleString('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    minimumFractionDigits: 5,
+    maximumFractionDigits: 5,
+  });
+};
+
+export const formatOnchainBalance = (balance: number) => {
+  const scale = 5;
+  let format_balance = Math.floor(balance * 10 ** scale) / 10 ** scale;
+  return format_balance.toLocaleString('en-US', {
+    style: 'decimal',
+    minimumFractionDigits: 5,
+    maximumFractionDigits: 5,
+  });
+};
+
 export const formatDateToLocal = (
   dateStr: string,
   locale: string = 'en-US',
