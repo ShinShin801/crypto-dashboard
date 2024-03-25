@@ -1,3 +1,5 @@
+'use server';
+
 import { sql } from '@vercel/postgres';
 import {
   CustomerField,
@@ -9,19 +11,21 @@ import {
   Revenue,
   Balance,
   Address,
+  LatestTxRaw,
 } from './definitions';
 import {
   formatCurrency,
   formatOnchainBalance,
   formatCurrencyAUD,
+  formatDateTime,
 } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
-import {
-  getMaticHistoricalBalance,
-  getMaticBalanceQuery,
-  getaddressCountQuery,
-  getTxCountQuery,
-} from './queries';
+// import {
+//   getMaticHistoricalBalance,
+//   getMaticBalanceQuery,
+//   getaddressCountQuery,
+//   getTxCountQuery,
+// } from './queries';
 
 export async function fetchBalance() {
   // Add noStore() here to prevent the response from being cached.
@@ -34,9 +38,9 @@ export async function fetchBalance() {
     const data = await sql<Balance>`WITH months AS (
       SELECT date_trunc('month', series) AS month
       FROM generate_series(
-        '2023-01-01'::timestamp, -- 開始日
-        '2023-12-31'::timestamp, -- 終了日
-        '1 month'::interval       -- 月単位
+        '2023-01-01'::timestamp,
+        '2023-12-31'::timestamp,
+        '1 month'::interval
       ) AS series
       ORDER BY month
     ),
@@ -124,6 +128,36 @@ export async function fetchAddressPages(query: string) {
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch total number of address.');
+  }
+}
+
+export async function fetchLatestTx() {
+  noStore();
+  try {
+    const data = await sql<LatestTxRaw>`
+      SELECT
+        txhash, datetime_utc, from_address, to_address,
+        CASE WHEN value_in_matic >0 THEN value_in_matic ELSE value_out_matic END AS matic_amount,
+        current_value, txnfee_matic, txnfee_usd, historical_price_matic, method
+      FROM polygonscan_transactions
+      ORDER BY datetime_utc desc
+      LIMIT 7
+      `;
+
+    const latestTx = data.rows.map((tx) => ({
+      ...tx,
+      // current_value: formatCurrency(tx.current_value),
+      matic_amount: formatOnchainBalance(tx.matic_amount),
+      current_value: formatCurrencyAUD(tx.current_value),
+      txnfee_matic: formatOnchainBalance(tx.txnfee_matic),
+      txnfee_usd: formatCurrencyAUD(tx.txnfee_usd),
+      historical_price_matic: formatOnchainBalance(tx.historical_price_matic),
+      datetime_utc: formatDateTime(tx.datetime_utc),
+    }));
+    return latestTx;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch the latest invoices.');
   }
 }
 

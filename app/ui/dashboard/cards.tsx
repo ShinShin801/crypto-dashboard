@@ -1,3 +1,5 @@
+// 'use client';
+
 import {
   BanknotesIcon,
   UserGroupIcon,
@@ -14,6 +16,7 @@ const iconMap = {
 };
 
 export default async function CardWrapper() {
+  // console.log('client');
   const { maticBalance, maticBalanceAUD, numberOfAddress, numberOfTx } =
     await fetchCardData();
   return (
