@@ -138,6 +138,7 @@ export async function insertPolyscanTransactions(
       //   'Database Error: Failed to insert transaction data.',
       //   error,
       // );
+      console.log(error);
       throw new Error();
     }
   }

@@ -10,7 +10,7 @@ import { fetchBalance } from '@/app/lib/data';
 // https://www.chartjs.org/
 // https://airbnb.io/visx/
 
-export default async function RevenueChart() {
+export default async function BalanceChart() {
   // Make component async, remove the props
   const balance = await fetchBalance(); // Fetch data inside the component
   const chartHeight = 350;

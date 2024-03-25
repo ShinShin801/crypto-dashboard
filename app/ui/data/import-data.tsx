@@ -22,10 +22,12 @@ export default function ImporttransactionData() {
     setIsLoading(true);
     setIsCompleted(false);
     try {
+      console.log(11);
       await handleUploadToDatabase(csvData, setErrorMessage);
       setIsCompleted(true);
       setErrorMessage(null);
     } catch (error) {
+      console.log(2);
       setErrorMessage('Upload failed. Please try again.');
       setIsCompleted(false);
     } finally {

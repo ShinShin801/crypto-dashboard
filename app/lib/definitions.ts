@@ -54,6 +54,23 @@ export type LatestInvoiceRaw = Omit<LatestInvoice, 'amount'> & {
   amount: number;
 };
 
+export type LatestTx = {
+  txhash: string;
+  datetime_utc: Date; // 'YYYY-MM-DD HH:MM:SS'
+  from_address: string;
+  to_address: string;
+  matic_amount: number;
+  current_value: number;
+  txnfee_matic: number;
+  txnfee_usd: number;
+  historical_price_matic: number;
+  method?: string;
+};
+
+export type LatestTxRaw = Omit<LatestTx, 'current_value'> & {
+  current_value: number;
+};
+
 export type InvoicesTable = {
   id: string;
   customer_id: string;

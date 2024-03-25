@@ -1,5 +1,7 @@
 import { Revenue, PolyscanTransactionData, Balance } from './definitions';
 import { insertPolyscanTransactions } from '@/app/lib/actions';
+import Papa from 'papaparse';
+import { ChangeEvent, DragEvent } from 'react';
 
 export const formatCurrency = (amount: number) => {
   return (amount / 100).toLocaleString('en-US', {
@@ -42,6 +44,10 @@ export const formatDateToLocal = (
   };
   const formatter = new Intl.DateTimeFormat(locale, options);
   return formatter.format(date);
+};
+
+export const formatDateTime = (dateTimeUtc: Date): string => {
+  return dateTimeUtc.toISOString().replace('T', ' ').substring(0, 19);
 };
 
 export const generateYAxis = (revenue: Balance[]) => {
@@ -190,4 +196,44 @@ export const handleUploadToDatabase = async (
     throw new Error();
   }
   // console.log('Uploading CSV data to database...', csvData);
+};
+
+export const parseCSVFile = (
+  file: File,
+  onDataLoaded: (data: any[]) => void,
+) => {
+  Papa.parse(file, {
+    complete: (result) => {
+      onDataLoaded(result.data);
+    },
+    header: true,
+    skipEmptyLines: true,
+  });
+};
+
+export const handleDrop = (
+  event: DragEvent<HTMLLabelElement>,
+  onDataLoaded: (data: any[]) => void,
+) => {
+  event.preventDefault();
+  const files = event.dataTransfer.files;
+  if (files && files.length > 0) {
+    const file = files[0];
+    parseCSVFile(file, onDataLoaded);
+  }
+};
+
+export const handleDragOver = (event: DragEvent<HTMLLabelElement>) => {
+  event.preventDefault();
+};
+
+export const handleFileChange = (
+  event: ChangeEvent<HTMLInputElement>,
+  onDataLoaded: (data: any[]) => void,
+) => {
+  const files = event.target.files;
+  if (files && files.length > 0) {
+    const file = files[0];
+    parseCSVFile(file, onDataLoaded);
+  }
 };

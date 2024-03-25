@@ -3,8 +3,7 @@
 import CardWrapper from '@/app/ui/dashboard/cards';
 import BalanceChart from '@/app/ui/dashboard/balance-chart';
 import LatestTx from '@/app/ui/dashboard/latest-tx';
-import { lusitana } from '@/app/ui/fonts';
-import { Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import {
   RevenueChartSkeleton,
   LatestInvoicesSkeleton,
@@ -12,15 +11,10 @@ import {
 } from '@/app/ui/skeletons';
 import { Metadata } from 'next';
 import AddressDropdown from '@/app/ui/dashboard/choose-address';
-import Wrapper from '@/app/ui/dashboard/wrapper';
 
-export default async function Page() {
+export default async function Wrapper() {
   return (
-    <main>
-      <h1 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
-        Dashboard
-      </h1>
-      {/* <Wrapper /> */}
+    <div>
       <div className="mt-6 grid grid-cols-1">
         <AddressDropdown />
       </div>
@@ -37,10 +31,6 @@ export default async function Page() {
           <LatestTx />
         </Suspense>
       </div>
-    </main>
+    </div>
   );
 }
-
-export const metadata: Metadata = {
-  title: 'Dashboard',
-};
