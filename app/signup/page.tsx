@@ -1,5 +1,5 @@
 import CryptyLogo from '@/app/ui/cripty-logo';
-import LoginForm from '@/app/ui/login-form';
+import SignupForm from '@/app/ui/signup-form';
 import { Metadata } from 'next';
 
 export default function LoginPage() {
@@ -11,12 +11,12 @@ export default function LoginPage() {
             <CryptyLogo />
           </div>
         </div>
-        <LoginForm />
+        <SignupForm />
       </div>
     </main>
   );
 }
 
 export const metadata: Metadata = {
-  title: 'Login',
+  title: 'Signup',
 };

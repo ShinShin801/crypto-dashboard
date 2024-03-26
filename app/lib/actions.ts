@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
 import { PolyscanTransactionData } from './definitions';
+import { fetchUserId } from './data';
 
 const FormSchema = z.object({
   id: z.string(),
@@ -23,11 +24,25 @@ const FormSchema = z.object({
 });
 
 const FormAddressSchema = z.object({
-  user_id: z.string(),
   address: z.string().refine((address) => /^0x[a-fA-F0-9]{40}$/.test(address), {
     message:
       'Please enter valid wallet address(0x followed by 40 hexadecimal characters).',
   }),
+});
+
+const FormUserSchema = z.object({
+  name: z
+    .string()
+    .min(3, { message: 'Name must be at least 3 characters long.' })
+    .max(10, { message: 'Name must be no longer than 10 characters.' }),
+  email: z.string().email({ message: 'Invalid email address.' }),
+  password: z
+    .string()
+    .min(5, { message: 'Password must be at least 8 characters long.' })
+    .regex(/[a-zA-Z]/, {
+      message: 'Password must contain at least one letter.',
+    })
+    .regex(/[0-9]/, { message: 'Password must contain at least one number.' }),
 });
 
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
@@ -149,7 +164,6 @@ export async function insertAddress(
   formData: FormData,
 ) {
   const validatedFields = FormAddressSchema.safeParse({
-    user_id: formData.get('user_id'),
     address: formData.get('address'),
   });
 
@@ -161,13 +175,14 @@ export async function insertAddress(
   }
 
   // Prepare data for insertion into the database
-  const { user_id, address } = validatedFields.data;
+  const user_id = await fetchUserId();
+  const { address } = validatedFields.data;
 
   // Insert data into the database
   try {
     await sql`
     INSERT INTO useraddress (user_id, address)
-    VALUES (${user_id}, ${address})
+    VALUES (${`${user_id}`}, ${address})
     `;
   } catch (error) {
     return {
@@ -229,6 +244,50 @@ export async function deleteInvoice(id: string) {
   }
 
   revalidatePath('/dashboard/invoices');
+}
+
+const bcrypt = require('bcrypt');
+export async function createUsers(
+  prevState: string | undefined,
+  formData: FormData,
+) {
+  console.log('Here');
+  const validatedFields = FormUserSchema.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+  });
+
+  console.log(formData.get('name'));
+  console.log(formData.get('email'));
+  console.log(formData.get('password'));
+
+  if (!validatedFields.success) {
+    return `
+    Name: ${validatedFields.error.flatten().fieldErrors.name}
+    Email: ${validatedFields.error.flatten().fieldErrors.email}
+    Pass: ${validatedFields.error.flatten().fieldErrors.password}`;
+    // {
+    //   errors: validatedFields.error.flatten().fieldErrors,
+    //   message: 'Missing Fields. Failed to Add the address.',
+    // };
+  }
+
+  // Prepare data for insertion into the database
+  const { name, email, password } = validatedFields.data;
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  try {
+    await sql`
+    INSERT INTO users (name, email, password)
+        VALUES (${name}, ${email}, ${hashedPassword})
+        ON CONFLICT (id) DO NOTHING;
+    `;
+  } catch (error) {
+    return `Error: ${error}`;
+  }
+
+  redirect('/login');
 }
 
 export async function authenticate(
