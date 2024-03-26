@@ -2,6 +2,7 @@ import { Revenue, PolyscanTransactionData, Balance } from './definitions';
 import { insertPolyscanTransactions } from '@/app/lib/actions';
 import Papa from 'papaparse';
 import { ChangeEvent, DragEvent } from 'react';
+import { fetchUserId } from './data';
 
 export const formatCurrency = (amount: number) => {
   return (amount / 100).toLocaleString('en-US', {
@@ -101,12 +102,13 @@ export const generatePagination = (currentPage: number, totalPages: number) => {
 
 export interface DataRow extends Record<string, unknown> {}
 
-export const transformCsvDataToPolyscanTransactionData = (
+export const transformCsvDataToPolyscanTransactionData = async (
   renamedCsvData: DataRow[],
-): PolyscanTransactionData[] => {
+): Promise<PolyscanTransactionData[]> => {
+  const user_id = await fetchUserId();
   return renamedCsvData.map((row) => {
     return {
-      user_id: '410544b2-4001-4271-9855-fec4b6a6442a',
+      user_id: user_id,
       txhash: String(row.txhash),
       blockno: Number(row.blockno),
       unixtimestamp: Number(row.unixtimestamp),
@@ -155,27 +157,31 @@ export const handleUploadToDatabase = async (
   csvData: DataRow[],
   setErrorMessage: (message: string | null) => void,
 ) => {
+  if (!csvData.length) {
+    setErrorMessage('CSV data is empty');
+    return;
+  }
+
   // Retrieving columns
   const csvColumns: string[] = Object.keys(csvData[0]);
 
-  // If all the required columns are included
-  const allRequiredColumnsPresent: boolean = Object.keys(requiredColumns).every(
+  // Check if all required columns are included
+  const allRequiredColumnsPresent = Object.keys(requiredColumns).every(
     (column) =>
       csvColumns.includes(column) ||
       csvColumns.some((col) => new RegExp('CurrentValue @.*').test(col)),
   );
 
   if (!allRequiredColumnsPresent) {
-    // console.error('CSV data does not contain all required columns');
-    throw new Error();
+    setErrorMessage('CSV data does not contain all required columns');
     return;
   }
 
-  // Columns rename
+  // Rename columns and transform data
   const renamedCsvData: DataRow[] = csvData.map((row) => {
     const newRow: DataRow = {};
     Object.entries(row).forEach(([key, value]) => {
-      const newKey: string =
+      const newKey =
         requiredColumns[key] ||
         key.replace(/CurrentValue @.*/, 'current_value');
       newRow[newKey] = value;
@@ -183,19 +189,26 @@ export const handleUploadToDatabase = async (
     return newRow;
   });
 
-  const parsedData: PolyscanTransactionData[] =
-    transformCsvDataToPolyscanTransactionData(renamedCsvData);
-  console.log('Renamed CSV data', parsedData);
+  let parsedData: PolyscanTransactionData[];
+  try {
+    // Assuming transformCsvDataToPolyscanTransactionData is now async due to fetchUserId
+    parsedData =
+      await transformCsvDataToPolyscanTransactionData(renamedCsvData);
+  } catch (error) {
+    console.error('Error transforming CSV data:', error);
+    setErrorMessage(
+      'Error transforming CSV data. Please check the data format.',
+    );
+    return;
+  }
 
   try {
     await insertPolyscanTransactions(parsedData);
+    setErrorMessage(null); // Clear any previous error message
   } catch (error) {
-    // setErrorMessage(
-    //   `Error while inserting, might be data duplicate, Please try again.`,
-    // );
-    throw new Error();
+    console.error('Database Error:', error);
+    setErrorMessage(`Error while inserting data. Please try again.`);
   }
-  // console.log('Uploading CSV data to database...', csvData);
 };
 
 export const parseCSVFile = (

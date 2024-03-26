@@ -11,27 +11,9 @@ export default function AddWalletForm() {
 
   const [state, dispatch] = useFormState(insertAddress, initialState);
 
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault();
-  //   // APIを呼び出してウォレットアドレスを追加
-  //   await fetch('/api/addWallet', {
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //     },
-  //     body: JSON.stringify({ address }),
-  //   });
-  //   setAddress(''); // フォームをリセット
-  // };
-
   return (
     // <form onSubmit={handleSubmit}>
     <form action={dispatch}>
-      <input
-        type="hidden"
-        name="user_id"
-        value="410544b2-4001-4271-9855-fec4b6a6442a"
-      />
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         <div className="mb-4">
           <label htmlFor="address" className="mb-2 block text-sm font-medium">
