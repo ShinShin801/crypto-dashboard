@@ -1,4 +1,4 @@
-import { Revenue, PolyscanTransactionData, Balance } from './definitions';
+import { PolyscanTransactionData, Balance } from './definitions';
 import { insertPolyscanTransactions } from '@/app/lib/actions';
 import Papa from 'papaparse';
 import { ChangeEvent, DragEvent } from 'react';
@@ -59,6 +59,7 @@ export const generateYAxis = (revenue: Balance[]) => {
     ...revenue.map((month) => month.matic_balance),
   );
   const topLabel = Math.ceil(highestRecord / 100) * 100;
+  const topLabelSpan = Math.floor(topLabel / 5);
 
   for (let i = topLabel; i >= 0; i -= 100) {
     yAxisLabels.push(`${i}`);

@@ -1,4 +1,5 @@
 import { fetchFilteredAddress } from '@/app/lib/data';
+import { StarIcon } from '@heroicons/react/24/outline';
 
 export default async function WalletList({
   query,
@@ -35,6 +36,9 @@ export default async function WalletList({
                 <th scope="col" className="px-4 py-5 font-medium sm:pl-6">
                   Wallet Address
                 </th>
+                <th scope="col" className="px-6 py-3 font-medium sm:pl-6">
+                  Favorite
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white">
@@ -47,6 +51,13 @@ export default async function WalletList({
                     <div className="flex items-center gap-3">
                       <p>{address.address}</p>
                     </div>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4">
+                    {address.is_favorite ? (
+                      <StarIcon className="h-5 w-5 text-yellow-500" />
+                    ) : (
+                      ''
+                    )}
                   </td>
                   <td className="whitespace-nowrap py-3 pl-6 pr-3">
                     <div className="flex justify-end gap-3"></div>

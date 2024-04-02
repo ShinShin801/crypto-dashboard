@@ -28,6 +28,9 @@ const FormAddressSchema = z.object({
     message:
       'Please enter valid wallet address(0x followed by 40 hexadecimal characters).',
   }),
+  is_favorite: z
+    .union([z.literal('on'), z.null()])
+    .transform((value) => value === 'on'),
 });
 
 const FormUserSchema = z.object({
@@ -165,6 +168,7 @@ export async function insertAddress(
 ) {
   const validatedFields = FormAddressSchema.safeParse({
     address: formData.get('address'),
+    is_favorite: formData.get('is_favorite'),
   });
 
   if (!validatedFields.success) {
@@ -176,13 +180,69 @@ export async function insertAddress(
 
   // Prepare data for insertion into the database
   const user_id = await fetchUserId();
-  const { address } = validatedFields.data;
+  const { address, is_favorite } = validatedFields.data;
+
+  // Insert data into the database
+  try {
+    if (is_favorite) {
+      await sql`
+    UPDATE useraddress
+    SET is_favorite = false
+    WHERE
+    user_id = ${`${user_id}`};
+    `;
+      await sql`INSERT INTO useraddress (user_id, address, is_favorite)
+    VALUES (${`${user_id}`}, ${address}, ${is_favorite});`;
+    } else {
+      await sql`
+    INSERT INTO useraddress (user_id, address, is_favorite)
+    VALUES (${`${user_id}`}, ${address}, ${is_favorite})
+    `;
+    }
+  } catch (error) {
+    return {
+      message: 'Database Error: Failed to Insert address.',
+    };
+  }
+
+  revalidatePath('/dashboard/wallets');
+  redirect('/dashboard/wallets');
+}
+
+export async function updatefavAddress(
+  prevState: StateAddress,
+  formData: FormData,
+) {
+  const validatedFields = FormAddressSchema.safeParse({
+    address: formData.get('address'),
+    is_favorite: formData.get('is_favorite'),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Add the address.',
+    };
+  }
+
+  // Prepare data for insertion into the database
+  const user_id = await fetchUserId();
+  const { address, is_favorite } = validatedFields.data;
 
   // Insert data into the database
   try {
     await sql`
-    INSERT INTO useraddress (user_id, address)
-    VALUES (${`${user_id}`}, ${address})
+    UPDATE useraddress
+    SET is_favorite = false
+    WHERE
+    user_id = ${`${user_id}`};
+    `;
+    await sql`
+    UPDATE useraddress
+    SET is_favorite = true
+    WHERE
+    user_id = ${`${user_id}`}
+    AND address = ${`${address}`};
     `;
   } catch (error) {
     return {
@@ -192,58 +252,6 @@ export async function insertAddress(
 
   revalidatePath('/dashboard/wallets');
   redirect('/dashboard/wallets');
-  // Test it out:
-  // console.log(rawFormData);
-  // console.log(typeof rawFormData.amount);
-}
-
-export async function updateInvoice(
-  id: string,
-  prevState: State,
-  formData: FormData,
-) {
-  const validatedFields = UpdateInvoice.safeParse({
-    customerId: formData.get('customerId'),
-    amount: formData.get('amount'),
-    status: formData.get('status'),
-  });
-
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-      message: 'Missing Fields. Failed to Update Invoice.',
-    };
-  }
-
-  const { customerId, amount, status } = validatedFields.data;
-  const amountInCents = amount * 100;
-
-  try {
-    await sql`
-      UPDATE invoices
-      SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
-      WHERE id = ${id}
-    `;
-  } catch (error) {
-    return { message: 'Database Error: Failed to Update Invoice.' };
-  }
-
-  revalidatePath('/dashboard/invoices');
-  redirect('/dashboard/invoices');
-}
-
-export async function deleteInvoice(id: string) {
-  // throw new Error('Failed to Delete Invoices');
-
-  try {
-    await sql`DELETE FROM invoices WHERE id = ${id}`;
-  } catch (error) {
-    return {
-      message: 'Database Error: Failed to Delete Invoice.',
-    };
-  }
-
-  revalidatePath('/dashboard/invoices');
 }
 
 const bcrypt = require('bcrypt');

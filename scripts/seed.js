@@ -1,8 +1,5 @@
 const { db } = require('@vercel/postgres');
-const {
-  users,
-  useraddress
-} = require('../app/lib/placeholder-data.js');
+const { users, useraddress } = require('../app/lib/placeholder-data.js');
 const bcrypt = require('bcrypt');
 // const { useraddress } = require("@/app/lib/placeholder-data");
 
@@ -76,13 +73,13 @@ async function seedPolygonscanTransactions(client) {
     console.log(`Created "polygonscan_transactions" table`);
 
     return {
-      createTable};
+      createTable,
+    };
   } catch (error) {
     console.error('Error seeding polygonscan transactions:', error);
     throw error;
   }
 }
-
 
 async function seedUseraddress(client) {
   try {
@@ -93,6 +90,7 @@ async function seedUseraddress(client) {
     CREATE TABLE IF NOT EXISTS useraddress (
     user_id UUID NOT NULL,
     address CHAR(42) NOT NULL,
+    is_favorite BOOLEAN NOT NULL,
     PRIMARY KEY (user_id, address)
   );
 `;
@@ -103,8 +101,8 @@ async function seedUseraddress(client) {
     const insertedUserAddress = await Promise.all(
       useraddress.map(
         (useraddres) => client.sql`
-        INSERT INTO useraddress (user_id, address)
-        VALUES (${useraddres.user_id}, ${useraddres.address})
+        INSERT INTO useraddress (user_id, address, is_favorite)
+        VALUES (${useraddres.user_id}, ${useraddres.address}, ${useraddres.is_favorite})
         ON CONFLICT (user_id, address) DO NOTHING;
       `,
       ),
@@ -114,13 +112,13 @@ async function seedUseraddress(client) {
 
     return {
       createTable,
-      useraddress: insertedUserAddress};
+      useraddress: insertedUserAddress,
+    };
   } catch (error) {
     console.error('Error seeding User Address:', error);
     throw error;
   }
 }
-
 
 // async function seedInvoices(client) {
 //   try {

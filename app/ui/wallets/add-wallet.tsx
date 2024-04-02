@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { StarIcon } from '@heroicons/react/24/outline';
+
+import React, { useState } from 'react';
 import { useFormState } from 'react-dom';
 import { insertAddress } from '@/app/lib/actions';
 import { Button } from '@/app/ui/button';
@@ -40,6 +42,28 @@ export default function AddWalletForm() {
             </div>
           </div>
         </div>
+        <fieldset>
+          <legend className="mb-2 block text-sm font-medium">
+            Set the favorite address
+          </legend>
+          <div className="rounded-md border border-gray-200 bg-white px-[14px] py-3">
+            <div className="flex items-center gap-4">
+              <label
+                htmlFor="favorite"
+                className="flex cursor-pointer items-center gap-1.5 rounded-full bg-yellow-500 px-3 py-1.5 text-xs font-medium text-white"
+              >
+                <StarIcon className="h-4 w-4" />
+                Favorite
+              </label>
+              <input
+                id="is_favorite"
+                name="is_favorite"
+                type="checkbox"
+                className="h-4 w-4 cursor-pointer border-gray-300 bg-gray-100 text-gray-600 focus:ring-2"
+              />
+            </div>
+          </div>
+        </fieldset>
       </div>
       <div className="mt-6 flex justify-end gap-4">
         <Link
@@ -48,7 +72,7 @@ export default function AddWalletForm() {
         >
           Cancel
         </Link>
-        <Button type="submit">Add Wallet</Button>
+        <Button type="submit">Add Address</Button>
       </div>
     </form>
   );

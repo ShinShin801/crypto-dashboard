@@ -11,8 +11,7 @@ import {
   CardsSkeleton,
 } from '@/app/ui/skeletons';
 import { Metadata } from 'next';
-import AddressDropdown from '@/app/ui/dashboard/choose-address';
-import Wrapper from '@/app/ui/dashboard/wrapper';
+import FavoriteAddress from '@/app/ui/dashboard/favorite-address';
 
 export default async function Page() {
   return (
@@ -22,7 +21,7 @@ export default async function Page() {
       </h1>
       {/* <Wrapper /> */}
       <div className="mt-6 grid grid-cols-1">
-        <AddressDropdown />
+        <FavoriteAddress />
       </div>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Suspense fallback={<CardsSkeleton />}>
