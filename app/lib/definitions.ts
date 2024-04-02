@@ -36,6 +36,12 @@ export type Address = {
   address: number;
 };
 
+export type AddressFav = {
+  // user_id: string;
+  address: number;
+  is_favorite: boolean;
+};
+
 export type Balance = {
   month: string;
   matic_balance: number;

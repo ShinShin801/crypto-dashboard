@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { lusitana } from '@/app/ui/fonts';
 import Search from '@/app/ui/search';
-import { AddAddress } from '@/app/ui/wallets/buttons';
+import { AddAddress, SetFavWallet } from '@/app/ui/wallets/buttons';
 import WalletList from '@/app/ui/wallets/table';
 import { Suspense } from 'react';
 import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
@@ -35,6 +35,9 @@ export default async function Page({
       </Suspense>
       <div className="mt-5 flex w-full justify-center">
         <Pagination totalPages={totalPages} />
+      </div>
+      <div className="flex justify-end">
+        <SetFavWallet />
       </div>
     </div>
   );

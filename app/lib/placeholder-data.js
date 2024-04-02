@@ -13,6 +13,7 @@ const useraddress = [
   {
     user_id: '410544b2-4001-4271-9855-fec4b6a6442a',
     address: '0x1f8c45596b195593A5495D14bF3Bb38f5D080a2E',
+    is_favorite: true,
   },
 ];
 

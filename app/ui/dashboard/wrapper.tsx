@@ -10,7 +10,7 @@ import {
   CardsSkeleton,
 } from '@/app/ui/skeletons';
 import { Metadata } from 'next';
-import AddressDropdown from '@/app/ui/dashboard/choose-address';
+import AddressDropdown from '@/app/ui/dashboard/favorite-address';
 
 export default async function Wrapper() {
   return (

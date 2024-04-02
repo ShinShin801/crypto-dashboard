@@ -3,19 +3,13 @@
 import { sql } from '@vercel/postgres';
 import { auth } from '@/auth';
 
-import { User, Balance, Address, LatestTxRaw } from './definitions';
+import { User, Balance, Address, LatestTxRaw, AddressFav } from './definitions';
 import {
   formatOnchainBalance,
   formatCurrencyAUD,
   formatDateTime,
 } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
-// import {
-//   getMaticHistoricalBalance,
-//   getMaticBalanceQuery,
-//   getaddressCountQuery,
-//   getTxCountQuery,
-// } from './queries';
 
 export async function fetchBalance() {
   // Add noStore() here to prevent the response from being cached.
@@ -24,15 +18,26 @@ export async function fetchBalance() {
 
   try {
     console.log('Fetching wallet balance data...');
-
-    const data = await sql<Balance>`WITH months AS (
-      SELECT date_trunc('month', series) AS month
-      FROM generate_series(
-        '2023-01-01'::timestamp,
-        '2023-12-31'::timestamp,
-        '1 month'::interval
-      ) AS series
-      ORDER BY month
+    const user_id = await fetchUserId();
+    const address = await fetchFavorateAddress();
+    const data = await sql<Balance>`WITH MinDate AS (
+      SELECT
+        MIN(dateTime_utc) AS min_date
+      FROM
+        polygonscan_transactions
+      WHERE
+        (from_address = ${`${address}`}
+        OR to_address = ${`${address}`})
+        AND user_id = ${`${user_id}`}
+    ), months AS (
+      SELECT
+        date_trunc('month', series.date) AS month
+      FROM
+        generate_series(
+          (SELECT date_trunc('month', min_date) FROM MinDate),
+          (SELECT date_trunc('month', CURRENT_DATE) FROM MinDate),
+          '1 month'
+        ) AS series(date)
     ),
     tx AS (
       SELECT
@@ -40,10 +45,11 @@ export async function fetchBalance() {
         SUM(value_in_matic) AS total_matic_in,
         SUM(value_out_matic) AS total_matic_out,
         SUM(value_in_matic) - SUM(value_out_matic) AS total_in_out,
-        SUM(CASE WHEN from_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835' THEN txnfee_matic ELSE 0 END) AS total_txfee_matic
+        SUM(CASE WHEN from_address = ${`${address}`} THEN txnfee_matic ELSE 0 END) AS total_txfee_matic
       FROM polygonscan_transactions
-      WHERE from_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835'
-      OR to_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835'
+      WHERE from_address = ${`${address}`}
+      OR to_address = ${`${address}`}
+      AND user_id = ${`${user_id}`}
       GROUP BY 1
         ORDER BY month desc
     ),
@@ -66,6 +72,7 @@ export async function fetchBalance() {
         total_in_out_amount,
         matic_balance
       FROM monthly
+      WHERE month > (CURRENT_DATE - INTERVAL '1 YEAR')
     )
 
     SELECT month, matic_balance
@@ -91,6 +98,43 @@ export async function fetchUserId() {
   // console.log(user_id_q);
   return user_id_q.rows[0].id;
 }
+export async function fetchAddress() {
+  noStore();
+
+  try {
+    const user_id = await fetchUserId();
+    const addresses = await sql<Address>`
+      SELECT address
+      FROM useraddress
+      WHERE user_id = ${`${user_id}`}
+        AND NOT is_favorite
+    `;
+    // return addresses.rows[0] ? addresses.rows[0].address : null;
+    return addresses.rows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch addresses.');
+  }
+}
+
+export async function fetchFavorateAddress() {
+  noStore();
+
+  try {
+    const user_id = await fetchUserId();
+    const addresses = await sql<Address>`
+      SELECT address
+      FROM useraddress
+      WHERE user_id = ${`${user_id}`}
+        AND is_favorite
+      LIMIT 1
+    `;
+    return addresses.rows[0] ? addresses.rows[0].address : null;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch addresses.');
+  }
+}
 
 const ITEMS_PER_PAGE_ADDRESS = 10;
 export async function fetchFilteredAddress(query: string, currentPage: number) {
@@ -99,12 +143,12 @@ export async function fetchFilteredAddress(query: string, currentPage: number) {
 
   try {
     const user_id = await fetchUserId();
-    const addresses = await sql<Address>`
-      SELECT address
+    const addresses = await sql<AddressFav>`
+      SELECT address, is_favorite
       FROM useraddress
       WHERE user_id = ${`${user_id}`}
         AND address ILIKE ${`%${query}%`}
-      ORDER BY address
+      ORDER BY is_favorite desc, address
       LIMIT ${ITEMS_PER_PAGE_ADDRESS} OFFSET ${offset}
     `;
     return addresses.rows;
@@ -140,6 +184,7 @@ export async function fetchLatestTx() {
   noStore();
   try {
     const user_id = await fetchUserId();
+    const address = await fetchFavorateAddress();
     const data = await sql<LatestTxRaw>`
       SELECT
         txhash, datetime_utc, from_address, to_address,
@@ -147,6 +192,8 @@ export async function fetchLatestTx() {
         current_value, txnfee_matic, txnfee_usd, historical_price_matic, method
       FROM polygonscan_transactions
       WHERE user_id = ${`${user_id}`}
+      AND (from_address = ${`${address}`}
+        OR to_address = ${`${address}`})
       ORDER BY datetime_utc desc
       LIMIT 7
       `;
@@ -175,14 +222,16 @@ export async function fetchCardData() {
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
     const user_id = await fetchUserId();
+    const address = await fetchFavorateAddress();
     const maticBalancePromise = sql`
     WITH balance as (
       SELECT
         SUM(CASE WHEN value_in_matic >0 THEN value_in_matic ELSE -value_out_matic END) -
-        SUM(CASE WHEN from_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835' THEN txnfee_matic ELSE 0 END) AS matic_balance
+        SUM(CASE WHEN from_address = ${`${address}`} THEN txnfee_matic ELSE 0 END) AS matic_balance
       FROM polygonscan_transactions
-      WHERE from_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835'
-        OR to_address = '0x6d02240549a79e5cc6638a7f0b2cb1fb731bc835'
+      WHERE (from_address = ${`${address}`}
+        OR to_address = ${`${address}`})
+        AND user_id = ${`${user_id}`}
       )
       SELECT matic_balance, matic_balance*1.5 as matic_balance_aud
       FROM balance;`;
@@ -195,7 +244,9 @@ export async function fetchCardData() {
     SELECT
       COUNT(txhash) AS count
     FROM polygonscan_transactions
-    WHERE user_id = ${`${user_id}`};`;
+    WHERE (from_address = ${`${address}`}
+        OR to_address = ${`${address}`})
+        AND user_id = ${`${user_id}`}`;
 
     const data = await Promise.all([
       maticBalancePromise,
